@@ -1,0 +1,1020 @@
+---
+title: "Student Mental Stress"
+author: "CHRISTINA THOMPSON ACQUAH"
+date: " "
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    number_sections: yes
+    toc_collapsed: yes
+    code_folding: hide
+    code_download: yes
+    smooth_scroll: yes
+    theme: lumen
+  word_document: 
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    keep_md: yes
+  pdf_document: 
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    number_sections: yes
+    fig_width: 3
+    fig_height: 3
+editor_options: 
+  chunk_output_type: inline
+---
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  font-weight: bold;
+  color: navy;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: navy;
+  text-align: center;
+  font-weight: bold;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+  font-weight: bold;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: center;
+    font-weight: bold;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+    font-weight: bold;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+# code chunk specifies whether the R code, warnings, and output 
+# will be included in the output files.
+if (!require("knitr")) {
+   install.packages("knitr")
+   library(knitr)
+}
+if (!require("tidyverse")) {
+   install.packages("tidyverse")
+library(tidyverse)
+}
+if (!require("GGally")) {
+   install.packages("GGally")
+library(GGally)
+}
+if (!require("glmnet")) {
+   install.packages("glmnet")
+library(glmnet)
+}
+if (!require("caret")) {
+   install.packages("caret")
+library(caret)
+}
+if (!require("MASS")) {
+   install.packages("MASS")
+library(MASS)
+}
+if (!require("mlbench")) {
+   install.packages("mlbench")
+library(mlbench)
+}
+if (!require("pROC")) {
+   install.packages("pROC")
+library(pROC)
+}
+if (!require("plotly")) {
+   install.packages("plotly")
+library(plotly)
+}
+if (!require("pander")) {
+   install.packages("pander")
+library(pander)
+}
+### 
+knitr::opts_chunk$set(echo = TRUE,       
+                      warning = FALSE,    
+                      results = TRUE,    
+                      message = FALSE,
+                      comment = NA
+                      )  
+```
+
+# Introduction
+College students face a wide range of academic and psychosocial pressures that can manifest as elevated levels of mental stress. In this project, we use a dataset of 760 undergraduates with 20 variables—both numerical (e.g. study hours, sleep duration) and categorical (e.g.gender, counseling attendance) to answer two practical questions:
+
+Regression question: Which combination of academic, lifestyle, and personal factors best predicts the total number of stressors a student reports?
+
+Classification question: Which combination of academic, lifestyle, and personal factors best distinguishes students who attend counseling from those who do not?
+
+We will apply
+
+CART regression to the numeric stress scores, and CART classification to the counseling attendance binary outcome,then compare their performance to traditional linear/logistic models.
+
+## Itemized List of Feature Variables
+
+The  table below presents the set of 17 core features we’ve chosen for our CART analyses of student mental stress and counseling attendance. Although the original survey recorded over 20 different items spanning academic, lifestyle, social, and psychological domains, we have focused on those variables most directly linked to stress levels and help‐seeking behavior. For each feature you’ll see its name, a concise description, and whether it’s treated as numerical or categorical serving as a handy reference before diving into the modeling steps.
+
+```{r}
+# Load knitr package for pretty table output
+library(knitr)
+
+# Define the feature variables with their descriptions and data types
+features <- data.frame(
+  Feature_Name = c(
+    "Age",
+    "Gender",
+    "Academic Performance (GPA)",
+    "Study Hours Per Week",
+    "Social Media Usage (Hours per day)",
+    "Sleep Duration (Hours per night)",
+    "Physical Exercise (Hours per week)",
+    "Family Support",
+    "Financial Stress",
+    "Peer Pressure",
+    "Relationship Stress",
+    "Diet Quality",
+    "Stress Coping Mechanisms",
+    "Cognitive Distortions",
+    "Family Mental Health History",
+    "Medical Condition",
+    "Substance Use"
+  ),
+  Description = c(
+    "Student's age in years",
+    "Student's gender (Male/Female)",
+    "Self‑reported GPA on a 0–4 scale",
+    "Hours spent studying per week",
+    "Hours per day spent on social media",
+    "Average hours of sleep per night",
+    "Hours of physical exercise per week",
+    "Self‑rated family support (e.g. 1–5 scale)",
+    "Self‑rated financial stress level (1–5)",
+    "Self‑rated peer pressure level (1–5)",
+    "Self‑rated relationship stress level (1–5)",
+    "Self‑rated diet quality (1–5)",
+    "Primary coping mechanism category (e.g. Exercise, Meditation)",
+    "Score or count of cognitive distortions",
+    "Presence of family mental health history (Yes/No)",
+    "Presence of a medical condition (Yes/No)",
+    "Frequency or count of substance use episodes"
+  ),
+  Data_Type = c(
+    "Numerical",
+    "Categorical",
+    "Numerical",
+    "Numerical",
+    "Numerical",
+    "Numerical",
+    "Numerical",
+    "Numerical",
+    "Numerical",
+    "Numerical",
+    "Numerical",
+    "Numerical",
+    "Categorical",
+    "Numerical",
+    "Categorical",
+    "Categorical",
+    "Numerical"
+  ),
+  stringsAsFactors = FALSE
+)
+
+# Print the table using knitr::kable
+kable(features)
+```
+# Data Preparation 
+## Exploratory Data Analysis (EDA)
+As we set out to understand what drives students’ stress and their likelihood of seeking counseling, our first task was simply to look at each variable on its own. We laid out a grid of histograms Age, GPA, Study Hours, Social‑Media Usage, Sleep Duration, Physical Exercise, and Mental Stress Level so we could see the shape of every measure before any modeling began.
+
+Age spans 18 to 30, with a fairly even spread punctuated by small peaks around 24 and 30, our sample truly covers the full undergraduate (and beyond) spectrum.
+
+GPA clusters strongly at 3.0 and 4.0 on the 4‑point scale, reflecting a cohort of solid “B” and “A” performers.
+
+Study Hours per Week stretch from 0 up to 60, but most students invest 10–40 hours, indicating a generally moderate workload.
+
+Social‑Media Usage surprised us with a bump at 7–8 hours/day, underscoring how plugged‑in our students are.
+
+Sleep Duration settles between 6–10 hours/night, often peaking around 9 hours, and shows no alarming sleep‑deprivation spike.
+
+Physical Exercise centers around 2–5 hours/week, tapering off at both extremes.
+
+Mental Stress Level fills the 1–10 scale but leans slightly toward the lower end (scores of 2–4 are most common), suggesting most students report only moderate stress.
+
+Next, we overlaid boxplots to compare stress across groups:
+
+By Gender: every identity—from Agender to Polygender—huddles around a median stress of 5–7, with similar interquartile ranges. No single group stands dramatically apart.
+
+By Counseling Attendance: students who did and did not seek counseling share a median stress of 5, again with similar spreads. In other words, raw stress level alone doesn’t fully explain who reaches out for help.
+
+Taken together, these distributions reassure us that each predictor brings its own, moderately spread signal—no two variables mirror one another, and none suffer from extreme skew that demands urgent transformation. We now have the confidence to grow our CART trees—knowing that each split (say, isolating students who sleep fewer than six hours versus those who study more than 40 hours) will tap into a distinct facet of the student experience, and that our classification tree can separate counselor‑seekers from non‑seekers on unique combinations of these factors.
+
+```{r}
+# Read the dataset 
+data_stress <- read.csv("https://christina-tinaa.github.io/Student_MentalHealth/Student_Mental_Stress.csv")
+#summary(data_stress)
+
+# 3.1 Clean up names & factor conversions
+names(data_stress) <- make.names(names(data_stress))
+data_stress <- data_stress %>%
+  mutate(
+    Gender                = factor(Gender),
+    Counseling.Attendance = factor(Counseling.Attendance, levels = c("No","Yes"))
+  )
+
+# 3.2 Automatically detect numeric columns for histograms
+numeric_vars <- names(data_stress)[sapply(data_stress, is.numeric)]
+
+for (v in numeric_vars) {
+  print(
+    ggplot(data_stress, aes_string(x = v)) +
+      geom_histogram(bins = 30, fill = "#4C72B0", color = "white") +
+      labs(title = paste("Histogram of", v)) +
+      theme_minimal()
+  )
+}
+
+# 3.3 Boxplots of key stress measures by Counseling.Attendance
+stress_vars <- c(
+  "Family.Support",
+  "Financial.Stress",
+  "Peer.Pressure",
+  "Relationship.Stress",
+  "Mental.Stress.Level"
+)
+
+for (v in stress_vars) {
+  print(
+    ggplot(data_stress, aes_string(x = "Counseling.Attendance", y = v)) +
+      geom_boxplot() +
+      labs(
+        title = paste(v, "by Counseling Attendance"),
+        x     = "Counseling Attendance",
+        y     = v
+      ) +
+      theme_minimal()
+  )
+}
+
+```
+
+
+
+```{r}
+# Feature Engineering
+library(dplyr)
+library(janitor)
+
+# 1) Clean names, drop the ID column
+data_stress <- data_stress %>%
+  clean_names() %>%           # lower_snake_case
+  select(-student_id)         # drop the ID
+
+# 2) Feature engineering
+data_stress <- data_stress %>%
+  mutate(
+    # 2a) Composite of stressor subscales
+    total_stressors       = financial_stress + peer_pressure + relationship_stress,
+
+    # 2b) Sleep quality categories
+    sleep_quality         = case_when(
+                              sleep_duration_hours_per_night >=  8 ~ "Good",
+                              sleep_duration_hours_per_night >=  6 ~ "Moderate",
+                              TRUE                                   ~ "Poor"
+                            ) %>%
+                            factor(levels = c("Poor","Moderate","Good")),
+
+    # 2c) Social media usage buckets
+    social_media_category = case_when(
+                              social_media_usage_hours_per_day <= 1 ~ "Low",
+                              social_media_usage_hours_per_day <= 3 ~ "Medium",
+                              TRUE                                  ~ "High"
+                            ) %>%
+                            factor(levels = c("Low","Medium","High")),
+
+    # 2d) Exercise level buckets
+    exercise_level        = case_when(
+                              physical_exercise_hours_per_week <  2 ~ "Low",
+                              physical_exercise_hours_per_week <= 5 ~ "Medium",
+                              TRUE                                   ~ "High"
+                            ) %>%
+                            factor(levels = c("Low","Medium","High")),
+
+    # 2e) High‐GPA indicator
+    high_gpa              = if_else(academic_performance_gpa >= 3.0, "Yes", "No") %>%
+                            factor(levels = c("No","Yes")),
+
+    # 2f) Log‐transform skewed study‐hours
+    log_study_hours       = log1p(study_hours_per_week),
+
+    # 2g) Interaction feature
+    sleep_exercise        = sleep_duration_hours_per_night * physical_exercise_hours_per_week
+  )
+
+# 3) Quick sanity‐check
+#glimpse(data_stress)
+#summary(data_stress$total_stressors)
+
+```
+
+# Review of Alternative Methods
+Earlier we benchmarked these questions with linear regression (RMSE), logistic regression (accuracy/AUC), and SVMs for non‑linear margins.Those models set performance yardsticks but either assume linearity or hide decisions inside kernels.CART keeps the flexibility while exposing every split, so we carry the old metrics forward only for comparison and lean on the tree for interpretable results.
+
+
+# CART Regression
+Our aim is to predict each student’s total number of reported stressors (0–18). CART gives us three advantages:
+(i) it discovers non-linear break-points like Sleep < 6 hours
+(ii) it captures interactions such as heavy study × poor sleep
+(iii) it produces a diagram that non-statisticians can trace in seconds. 
+The workflow is four tidy steps: hyper-parameter tuning—5-fold CV over the complexity parameter cp (small cp grows deep trees, large cp prunes aggressively); final training on the full training set with the chosen cp; prediction on the held-out test set; evaluation—report RMSE and MAE, then read the tree to see which splits matter most.
+
+## Hyperparameter tuning
+The RMSE-vs-cp plot shows the familiar elbow: an unpruned tree (cp ≈ 0) over-fits and posts the worst RMSE (≈ 2.63). Pruning to cp = 0.006 cuts error to 2.52, and by cp = 0.016 the curve settles into a plateau at ≈ 2.35. caret therefore picks cp = 0.046, the leanest tree still sitting on that flat minimum. We sacrificed a handful of weak splits for a model that is both slender and just as accurate predicting stressor counts to within ±2.35 on unseen students.
+
+```{r}
+# — 1) DATA SPLITTING (70/30) ——————————————
+library(caret)
+set.seed(123)
+
+# Stratify on total_stressors (numeric) to keep its distribution
+train_idx <- createDataPartition(
+  data_stress$total_stressors,
+  p    = 0.7,
+  list = FALSE
+)
+
+train_reg <- data_stress[train_idx, ]
+test_reg  <- data_stress[-train_idx, ]
+
+#cat("Training set dimensions:", dim(train_reg), "\n")
+#cat("Testing  set dimensions:", dim(test_reg),  "\n\n")
+
+
+# — 2) HYPERPARAMETER TUNING FOR CART REGRESSION ——
+ctrl_reg <- trainControl(
+  method = "cv",
+  number = 5
+)
+
+grid_reg <- expand.grid(cp = seq(0.001, 0.05, by = 0.005))
+
+cart_reg_tune <- train(
+  total_stressors ~ 
+    age +
+    study_hours_per_week  +
+    sleep_duration_hours_per_night +   # or your sleep_quality factor
+    academic_performance_gpa +
+    social_media_usage_hours_per_day,
+  data      = train_reg,
+  method    = "rpart",
+  metric    = "RMSE",       # caret will minimize RMSE for regression
+  trControl = ctrl_reg,
+  tuneGrid  = grid_reg
+)
+
+# 3) EXAMINE RESULTS —————————————
+#print(cart_reg_tune)
+plot(cart_reg_tune, main = "Hyperparameter Tuning: RMSE vs cp")
+
+best_cp <- cart_reg_tune$bestTune$cp
+cat("→ Optimal cp for regression:", best_cp, "\n")
+```
+
+## Final Model Training
+
+With the complexity parameter fixed at cp = 0.046, I trained the definitive tree on the full training set (n = 534) and evaluated it on the held-out test set (n = 226). Performance is strong: RMSE = 1.26 stressors and R² = 0.70, meaning the model explains roughly 70 % of the variation in total stressor counts while erring, on average, by only a single stressor. The Predicted vs Observed scatter (black points) hugs the 45-degree reference line, indicating no systematic bias—low-stress students aren’t being overstated and high-stress students aren’t being understated.
+
+The tree itself reads like a counsellor’s quick-reference guide:
+
+Root split – Financial Stress < 4?
+Money worries dominate. Students rating their financial stress below four are sent left; everyone else goes right. That lone question divides the cohort into two distinct baselines—about 8 stressors versus 10 stressors.
+
+Peer pressure – the social amplifier
+Within the low-financial-stress branch, the next decision is peer pressure. Keeping it below four trims the burden to ≈ 7 stressors; letting it rise pushes the count back toward nine. When money isn’t the issue, friends (or frenemies) become the main stress trigger.
+
+Relationship stress – the final nudge
+Both halves conclude with relationship stress. Students who keep romantic tensions under three (left side) or four (right side) shave another one to two stressors off their totals.
+
+In short, financial strain sets the floor, peer dynamics raise or lower the mid-deck, and relationship tensions decide whether a student tips into double-digit stress. These three personal factors outrank purely academic variables, giving campus advisers a clear, behaviour-focused ladder for intervention.
+
+```{r}
+# 4) FINAL CART REGRESSION & EVALUATION
+
+library(rpart)
+library(rpart.plot)
+library(caret)    # for postResample
+library(ggplot2)
+
+# 4.1 Extract best cp from your tuning
+best_cp <- cart_reg_tune$bestTune$cp
+cat("Best cp selected:", best_cp, "\n\n")
+
+# 4.2 Train the final CART regression model
+final_cart <- rpart(
+  total_stressors ~
+    age +
+    study_hours_per_week  +
+    sleep_duration_hours_per_night +   # or your sleep_quality factor
+    academic_performance_gpa +
+    social_media_usage_hours_per_day+ 
+    physical_exercise_hours_per_week +
+    family_support +
+    financial_stress +
+    peer_pressure  +
+    relationship_stress+
+   diet_quality +
+    stress_coping_mechanisms +
+    cognitive_distortions +
+    substance_use,
+  data    = train_reg,
+  method  = "anova",                    # regression tree
+  control = rpart.control(cp = best_cp)
+)
+
+# 4.3 Predictions on the test set
+preds <- predict(final_cart, newdata = test_reg)
+
+# 4.4 Performance evaluation (RMSE & R²)
+metrics <- postResample(pred = preds, obs = test_reg$total_stressors)
+cat("Test RMSE: ", round(metrics["RMSE"], 3),   "\n")
+cat("Test R²:   ", round(metrics["Rsquared"], 3), "\n\n")
+
+# 4.5 Visualizations
+
+#  – Tree structure
+rpart.plot(
+  final_cart,
+  type          = 2,    # uniform node sizes
+  extra         = 101,  # prints n, predicted value, %obs
+  fallen.leaves = TRUE,
+  main          = "Final CART Regression Tree"
+)
+
+#  – Predicted vs. Observed scatter
+ggplot(test_reg, aes(x = total_stressors, y = preds)) +
+  geom_point(alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+  labs(
+    x     = "Observed Total Stressors",
+    y     = "Predicted Total Stressors",
+    title = "Final CART: Predicted vs. Observed"
+  ) +
+  theme_minimal()
+
+```
+
+# CART Classification
+With the total-stressor question answered, I pivot to the binary outcome: does a student attend counselling (“Yes”) or not (“No”)? A CART classifier is a natural first step because it (i) captures non-linear thresholds (e.g., peer-support < 3), (ii) handles interactions without manual feature engineering, and (iii) yields a flow-chart that counsellors can read at a glance. The modelling pipeline will mirror the regression workflow: establish a train-test split, tune the complexity parameter with cross-validated AUC, lock in the best cp, and then compare the final tree’s performance to bagging, random forest, and a baseline logistic model.
+
+## Hyperparameter tuning
+
+To mirror the process used for the regression tree, I ran a 5-fold cross-validation sweep of the complexity parameter on the Yes / No counselling-attendance outcome, scoring each model with AUC-ROC. The ROC curve is the obvious choice here: it is threshold-free and copes well with the mild class imbalance in our data (≈ 22 % “Yes”).
+
+The tuning trace is almost flat, but not completely. An unpruned tree (cp = 0.001) starts at ROC ≈ 0.488—just below coin-flip. As I nudge the penalty up to cp = 0.006, the ROC crests at 0.501, sensitivity settles at 0.462, and specificity at 0.493. Beyond that point pruning bites into useful branches and the ROC drifts steadily downward, touching 0.46 once cp exceeds 0.04. In line with the “choose the best metric” rule, caret selects cp = 0.006 as the optimal value.
+
+What this means: even the best single tree can do no better than random guessing on this particular feature set. The exercise is still informative it tells us that a modestly large tree retains whatever faint signal exists, while further pruning erases it altogether. In the next phase I will (i) fit the final tree with cp = 0.006, (ii) evaluate it on the independent test set, and (iii) see whether ensemble methods (bagging, random forest) can coax the ROC meaningfully above 0.50.
+
+```{r}
+
+# CLEAN & RECODE “Counseling.Attendance”, THEN SPLIT FOR CART CLASSIFICATION
+
+library(dplyr)
+library(stringr)
+library(caret)
+
+# 1) Clean column names (optional if already done)
+names(data_stress) <- make.names(names(data_stress))
+
+# 2) Trim whitespace and recode into “No” / “Yes”, drop any NAs
+data_stress <- data_stress %>%
+  mutate(
+    counseling_attendance = str_trim(counseling_attendance),
+    counseling_attendance = case_when(
+      tolower(counseling_attendance) == "yes" ~ "Yes",
+      tolower(counseling_attendance) == "no"  ~ "No",
+      TRUE                                   ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(counseling_attendance)) %>%
+  mutate(
+    counseling_attendance= factor(counseling_attendance, levels = c("No","Yes"))
+  )
+
+# 3) Stratified 70/30 split on the binary target
+set.seed(123)
+train_idx <- createDataPartition(
+  data_stress$counseling_attendance,
+  p    = 0.7,
+  list = FALSE
+)
+
+train_cl <- data_stress[train_idx, ]
+test_cl  <- data_stress[-train_idx, ]
+
+# 4) Verify dimensions and class balance
+#cat("Training set dimensions:", dim(train_cl), "\n")
+#cat("Testing  set dimensions:", dim(test_cl),  "\n")
+#cat("Train class counts:\n"); print(table(train_cl$counseling_attendance))
+#cat("Test  class counts:\n"); print(table(test_cl$counseling_attendance))
+
+
+# 2) HYPERPARAMETER TUNING FOR CART CLASSIFICATION
+library(caret)
+
+# 2.1 Set up 5-fold CV, enable class probabilities, optimize ROC AUC
+ctrl_cl <- trainControl(
+  method          = "cv",
+  number          = 5,
+  classProbs      = TRUE,
+  summaryFunction = twoClassSummary
+)
+
+# 2.2 Grid of cp values to search
+grid_cl <- expand.grid(cp = seq(0.001, 0.05, by = 0.005))
+
+# 2.3 Train
+cart_cl_tune <- train(
+  counseling_attendance ~
+    age +
+    study_hours_per_week +
+    total_stressors +
+    sleep_quality +
+    academic_performance_gpa +
+    social_media_usage_hours_per_day +
+    exercise_level +
+    social_media_category +
+    high_gpa +
+    log_study_hours +
+    sleep_exercise,
+  data       = train_cl,      # your classification training set
+  method     = "rpart",
+  metric     = "ROC",         # maximize AUC
+  trControl  = ctrl_cl,
+  tuneGrid   = grid_cl
+)
+
+# 3) Examine results
+#print(cart_cl_tune)
+plot(cart_cl_tune, main = "CART CV: ROC vs. cp")
+
+
+best_cp_class <- cart_cl_tune$bestTune$cp
+cat("→ Optimal cp for classification:", best_cp_class, "\n")
+
+```
+## Final Model Training
+
+With the complexity parameter fixed at cp = 0.006 (the value that maximised cross-validated AUC), I refit the tree on the full training sample and evaluated it on the hold-out set. Using Youden’s J to pick the operating point set the probability cut-off at 0.41, after which the model delivered:
+
+Accuracy ≈ 0.48 – 108 of 227 cases classified correctly.
+
+Sensitivity ≈ 0.46 – it identifies just under half of the students who actually attended counselling.
+
+Specificity ≈ 0.49 – it rules out non-attenders at about the same rate.
+
+AUC = 0.46 – the ROC curve hugs the diagonal, confirming that the tree’s discriminative power is scarcely better than chance.
+
+In short, the single CART is too blunt an instrument for this particular task.
+
+The variable-importance plot explains why the tree leans first on a composite sleep-exercise score, then on weekly study hours (both raw and log-scaled), with age and total stressors rounding out the top five. Those features form a plausible “well-being profile,” yet the signals are noisy: many students who sleep well and exercise still seek counselling, while plenty who don’t show no-show. Academic and social-media variables register, but only in the second tier, and the tree’s hard splits cannot tease out the subtler patterns buried there.
+
+```{r}
+
+# 1.  FINAL MODEL  (caret already trained it for you)
+final_cart_cl <- cart_cl_tune$finalModel          # an rpart object
+
+# visualise the tree
+#rpart.plot(final_cart_cl,
+          # type = 0, extra = 104, faclen = 0,
+          # main = "Final CART classification tree")
+
+
+# 2.  PREDICT CLASS PROBABILITIES ON THE TEST SET
+prob_cl <- predict(cart_cl_tune, newdata = test_cl, type = "prob")[, "Yes"]  # P(Y = Yes)
+
+# 3.  PICK AN OPTIMAL THRESHOLD  (≠ 0.50 in general)
+library(pROC)
+
+roc_obj <- roc(response   = test_cl$counseling_attendance,
+               predictor  = prob_cl,
+               levels     = c("No", "Yes"),   # ensure correct ordering
+               direction  = "<")              # 'Yes' gives larger probs
+
+opt <- coords(roc_obj,
+              x            = "best",
+              best.method  = "closest.topleft",
+              ret          = c("threshold", "sensitivity", "specificity",
+                               "accuracy", "precision", "recall"))
+
+cut_off <- as.numeric(opt["threshold"])
+print(opt)
+
+
+# 4.  CLASS LABELS WITH THAT THRESHOLD
+pred_cl <- factor(ifelse(prob_cl >= cut_off, "Yes", "No"),
+                  levels = c("No", "Yes"))
+
+# 5.  CONFUSION MATRIX + METRICS
+library(caret)
+cm <- confusionMatrix(pred_cl,
+                      test_cl$counseling_attendance,
+                      positive = "Yes")
+
+#cat("\nConfusion matrix:\n");  print(cm$table)
+cat("\nOverall accuracy  :", round(cm$overall["Accuracy"],    3), "\n")
+cat("Sensitivity (recall):", round(cm$byClass["Sensitivity"], 3), "\n")
+cat("Specificity        :", round(cm$byClass["Specificity"], 3), "\n")
+cat("AUC                :", round(auc(roc_obj),              3), "\n")
+
+# 6.  PLOTS  (remove `print()` lines in an .Rmd — knitr shows plots automatically)
+# 6a ROC
+plot(roc_obj, print.auc = TRUE, main = "ROC curve – CART classifier")
+
+# 6b Variable importance
+var_imp <- varImp(cart_cl_tune, scale = TRUE)
+#print(var_imp)
+plot(var_imp, main = "Variable importance (caret)")
+
+
+```
+
+#	Performance Comparison Across Models
+
+Shifting from predicting stressors to our second practical question—Which mix of academic, lifestyle, and personal factors best distinguishes students who attend counselling from those who do not?—I trained a CART classifier on the same 70/30 train/test split, tuned its complexity parameter, and then evaluated it on the held-out 227 students. A cross-validated grid search again pointed to cp = 0.046 as the sweet spot.
+
+When applied to the test set and using Youden’s J to set the decision threshold at ≈ 0.41, the final tree delivered an accuracy of 50.2 percent, a sensitivity of 10.8 percent, a specificity of 87.9 percent, and an AUC of 0.494 barely better than random. In other words, as a lone model this CART is far more reliable at ruling out non-attenders than at identifying those who will actually seek help.
+
+The tree itself shrinks to a single split on stress_coping_mechanismsTraveling . Students who report “traveling” as a coping strategy (11 percent of the sample) are classified as “Yes” with 71 percent probability, while the remaining 89 percent are classified as “No” with 54 percent probability. That lone breakpoint is the only signal strong enough to survive pruning and yet it catches only a sliver of the true attenders.
+
+To see whether more powerful learners can pick up subtler patterns, I then compared CART to three alternative classifiers on the same test set:
+
+Logistic Regression: Accuracy 55.9 %, AUC 0.570
+
+Random Forest: Accuracy 53.3 %, AUC 0.564
+
+SVM (RBF): Accuracy 55.9 %, AUC 0.565
+
+All three exceed CART’s AUC by roughly 0.07–0.08 points, suggesting that ensemble methods and parametric models can better aggregate the faint cues scattered across our academic, lifestyle, and social variables.
+
+
+
+```{r}
+library(tidyverse)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(pROC)
+library(gbm)
+library(knitr)
+
+# 1. DATA PREPARATION 
+set.seed(123)
+names(data_stress) <- make.names(names(data_stress))
+
+data_stress <- data_stress %>% 
+  mutate(
+    counseling_attendance = str_trim(counseling_attendance),
+    counseling_attendance = case_when(
+      tolower(counseling_attendance) == "yes" ~ "Yes",
+      tolower(counseling_attendance) == "no"  ~ "No",
+      TRUE                                    ~ NA_character_
+    )
+  ) %>% 
+  filter(!is.na(counseling_attendance)) %>% 
+  mutate(counseling_attendance = factor(counseling_attendance,
+                                        levels = c("No","Yes")))
+
+# 2. TRAIN/TEST SPLIT (70/30)
+idx      <- createDataPartition(data_stress$counseling_attendance,
+                                p = 0.70, list = FALSE)
+train_cl <- data_stress[idx , ]
+test_cl  <- data_stress[-idx, ]
+
+# 3. CROSS-VALIDATION CONTROL 
+ctrl_cl <- trainControl(
+  method           = "cv",
+  number           = 5,
+  classProbs       = TRUE,
+  summaryFunction  = twoClassSummary,
+  savePredictions  = "final"
+)
+
+# 4. CART CLASSIFIER (tune cp → final tree)
+grid_cp <- expand.grid(cp = seq(0.001, 0.05, 0.005))
+
+cart_cl_tune <- train(
+  counseling_attendance ~ ., 
+  data      = train_cl,
+  method    = "rpart",
+  metric    = "ROC",
+  trControl = ctrl_cl,
+  tuneGrid  = grid_cp
+)
+
+best_cp <- cart_cl_tune$bestTune$cp
+cat("Optimal cp for classification:", best_cp, "\n")
+
+# Plot final CART
+rpart.plot(
+  cart_cl_tune$finalModel,
+  type          = 2,
+  extra         = 104,
+  faclen        = 0,
+  tweak         = 1.3,
+  cex           = 0.8,
+  fallen.leaves = TRUE,
+  box.palette   = "Blues",
+  branch.lty    = 3,
+  shadow.col    = "grey",
+  main          = "Final CART Classification Tree"
+)
+
+# 5. ALTERNATIVE MODELS
+# 5.1 Logistic regression
+logit_mod <- train(
+  counseling_attendance ~ .,
+  data      = train_cl,
+  method    = "glm",
+  family    = binomial,
+  metric    = "ROC",
+  trControl = ctrl_cl
+)
+
+# 5.2 Random forest
+rf_mod <- train(
+  counseling_attendance ~ .,
+  data      = train_cl,
+  method    = "rf",
+  tuneLength= 5,
+  metric    = "ROC",
+  trControl = ctrl_cl
+)
+
+
+
+# 5.3 SVM (RBF kernel)
+svm_mod <- train(
+  counseling_attendance ~ .,
+  data      = train_cl,
+  method    = "svmRadial",
+  tuneLength= 6,
+  metric    = "ROC",
+  trControl = ctrl_cl
+)
+
+# 6. TEST-SET PERFORMANCE
+get_metrics <- function(model, name) {
+  probs <- predict(model, test_cl, type = "prob")[, "Yes"]
+  pred  <- factor(ifelse(probs >= 0.5, "Yes", "No"),
+                  levels = c("No","Yes"))
+  
+  cm  <- confusionMatrix(pred, test_cl$counseling_attendance,
+                         positive = "Yes")
+  roc_obj <- suppressMessages(
+    roc(test_cl$counseling_attendance, probs,
+        levels = c("No","Yes"), direction = "<", quiet = TRUE)
+  )
+  
+  tibble(
+    Model       = name,
+    Accuracy    = round(cm$overall["Accuracy"], 3),
+    Sensitivity = round(cm$byClass["Sensitivity"], 3),
+    Specificity = round(cm$byClass["Specificity"], 3),
+    AUC         = round(as.numeric(auc(roc_obj)), 3)
+  )
+}
+
+results_tbl <- bind_rows(
+  get_metrics(cart_cl_tune, "CART"),
+  get_metrics(logit_mod,    "Logistic"),
+  get_metrics(rf_mod,       "Random Forest"),
+  get_metrics(svm_mod,      "SVM-RBF")
+)
+
+kable(results_tbl, caption = "Test-set Performance: CART vs. Alternative Models")
+
+# 7. ROC CURVE OVERLAY
+roc_list <- list(
+  CART   = suppressMessages(roc(test_cl$counseling_attendance,
+                                predict(cart_cl_tune, test_cl, type="prob")[,"Yes"],
+                                levels = c("No","Yes"), direction = "<", quiet = TRUE)),
+  LogReg = suppressMessages(roc(test_cl$counseling_attendance,
+                                predict(logit_mod,    test_cl, type="prob")[,"Yes"],
+                                levels = c("No","Yes"), direction = "<", quiet = TRUE)),
+  RF     = suppressMessages(roc(test_cl$counseling_attendance,
+                                predict(rf_mod,       test_cl, type="prob")[,"Yes"],
+                                levels = c("No","Yes"), direction = "<", quiet = TRUE)),
+ 
+  SVM    = suppressMessages(roc(test_cl$counseling_attendance,
+                                predict(svm_mod,      test_cl, type="prob")[,"Yes"],
+                                levels = c("No","Yes"), direction = "<", quiet = TRUE))
+)
+
+plot(roc_list$CART, col = 1, lwd = 2, print.auc = FALSE,
+     main = "ROC Curves – Four Classifiers")
+invisible(mapply(function(r, col) lines(r, col = col, lwd = 2),
+                 roc_list[-1], 2:5))
+legend("bottomright", legend = names(roc_list),
+       col = 1:5, lwd = 2, bty = "n")
+```
+## Key insight:
+
+While travel as a coping mechanism emerges as the only clear split in a single tree, its predictive power is too weak for practical outreach. Logistic regression and ensemble learners recapture more of the subtle signal (AUC ≈ 0.57) but still fall short of the 0.60 threshold needed for reliable screening. To truly distinguish counselling seekers, we must enrich our feature set adding measures of schedule flexibility, perceived stigma, or support networks so that our models capture both the need and the practical access dimensions of help-seeking behavior.
+
+
+# ENSEMBLE:  BAGGING  &  RANDOM FOREST
+
+The grid search over the number of predictors tried at each split (mtry) showed that a very small sub‑space just two variables per tree node gave the highest cross‑validated AUC. In other words, randomly sampling only two features at each split delivered the best balance between diversity and signal for our counselling‑attendance classifier
+
+```{r , message=FALSE, warning=FALSE}
+# 7. ENSEMBLE ADD-ON: BAGGING & RANDOM FOREST  
+
+## 7.1  BAGGING
+set.seed(123)
+treebag_mod <- train(
+  counseling_attendance ~ ., 
+  data      = train_cl,
+  method    = "treebag",
+  metric    = "ROC",
+  trControl = ctrl_cl
+)
+
+## 7.2  RANDOM FOREST with mtry tuning
+set.seed(123)
+rf_grid <- expand.grid(mtry = seq(
+  2, 
+  floor(sqrt(ncol(train_cl) - 1)) * 2, 
+  by = 1
+))
+rf_tune <- train(
+  counseling_attendance ~ ., 
+  data      = train_cl,
+  method    = "rf",
+  metric    = "ROC",
+  ntree     = 500,          
+  tuneGrid  = rf_grid,
+  trControl = ctrl_cl
+)
+cat("→ Optimal mtry for RF:", rf_tune$bestTune$mtry, "\n")
+```
+
+The summary below shows each model’s overall accuracy, sensitivity (true‑positive rate), specificity (true‑negative rate), and AUC. While bagging reaches 52% accuracy and AUC ≈ 0.55—improving on CART’s 50% and 0.49, respectively—the best single approach remains logistic regression with 56% accuracy and AUC ≈ 0.57. The tuned RF trails at 49% accuracy and 0.53 AUC, reaffirming that for this particular counselling‑attendance problem, a simple, well‑regularized linear model or an SVM still outperforms even the most sophisticated tree ensembles.
+
+```{r , message=FALSE, warning=FALSE}
+# 8. BUILD A FRESH METRIC TABLE FOR ALL MODELS
+results_tbl <- bind_rows(
+  get_metrics(cart_cl_tune, "CART"),
+  get_metrics(logit_mod,    "Logistic"),
+  get_metrics(rf_mod,       "Random Forest"),
+  get_metrics(svm_mod,      "SVM-RBF"),
+  get_metrics(treebag_mod,  "Bagging"),
+  get_metrics(rf_tune,      "RF-tuned")
+) %>% 
+  distinct(Model, .keep_all = TRUE) %>% 
+  mutate(across(where(is.numeric), round, 3))
+
+kable(
+  results_tbl,
+  caption = "Test-set performance: Classical & Ensemble Models"
+)
+```
+
+The ROC overlay  lays out each model’s discriminative power on the test set. A single CART tree barely clears the chance diagonal, while bagging and the tuned RF push it up modestly into the 0.52–0.55 AUC range. Nonetheless, logistic regression  and SVM‑RBF (blue) still lead the pack with AUCs around 0.57, underscoring that margin‑based classifiers capture the blended academic‑lifestyle signal more cleanly than pure tree ensembles on this dataset.
+
+```{r , message=FALSE, warning=FALSE}
+# 9. ROC overlay 
+roc_list$Bagging  <- suppressMessages(
+  roc(test_cl$counseling_attendance,
+      predict(treebag_mod, test_cl, type="prob")[,"Yes"],
+      levels    = c("No","Yes"),
+      direction = "<", quiet = TRUE)
+)
+roc_list$RF_tuned <- suppressMessages(
+  roc(test_cl$counseling_attendance,
+      predict(rf_tune,     test_cl, type="prob")[,"Yes"],
+      levels    = c("No","Yes"),
+      direction = "<", quiet = TRUE)
+)
+
+plot(roc_list$CART,   col = 1, lwd = 2, main = "ROC – All Candidates")
+invisible(mapply(function(r, col) lines(r, col = col, lwd = 2),
+                 roc_list[-1], 2:length(roc_list)))
+legend("bottomright", legend = names(roc_list),
+       col = 1:length(roc_list), lwd = 2, bty = "n")
+
+# Hide the roc_list object so its contents don't print
+```
+## Variable Importance
+
+Here study‑hours again reign supreme, with a similar but slightly re‑ordered list—sleep–exercise, age, and log‑study‑hours all among the top five. Notably, GPA and total stressor count also break into the top ten under bagging (but not in the single random forest), suggesting that averaging many full‑feature trees can surface additional, subtler academic and overall‐stress signals missed by RF’s forced feature sub‑sampling
+
+```{r , message=FALSE, warning=FALSE}
+library(tidyverse)
+
+# 1) Extract the top 10 most important variables for Bagging
+imp_bg <- varImp(treebag_mod)$importance %>%
+  as.data.frame() %>%
+  rownames_to_column("Variable") %>%
+  arrange(desc(Overall)) %>%
+  slice(1:10)
+
+# 2) Plot Bagging top 10
+ggplot(imp_bg, aes(x = reorder(Variable, Overall), y = Overall)) +
+  geom_col(fill = "#1f77b4") +
+  coord_flip() +
+  labs(
+    title = "Bagging – Top 10 Variable Importance",
+    x     = NULL,
+    y     = "Importance"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+
+This figure ranks the ten variables that the tuned random forest found most predictive of who seeks counselling. At the top sit log‑transformed study hours and raw study‑hours per week, implying that academic load is the single strongest differentiator among help‑seekers. A combined sleep–exercise score and age follow closely—students who sleep and exercise better, or who are older, are more (or less) likely to attend counselling. Surprisingly, self‑rated mental‑stress level and social‑media hours also make the top five, showing that both subjective stress perceptions and online habits carry real weight in a multi‑tree ensemble.
+
+```{r , message=FALSE, warning=FALSE}
+# 3) Extract the top 10 for Random Forest
+imp_rf <- varImp(rf_tune)$importance %>%
+  as.data.frame() %>%
+  rownames_to_column("Variable") %>%
+  arrange(desc(Overall)) %>%
+  slice(1:10)
+
+# 4) Plot RF top 10
+ggplot(imp_rf, aes(x = reorder(Variable, Overall), y = Overall)) +
+  geom_col(fill = "#ff7f0e") +
+  coord_flip() +
+  labs(
+    title = "Random Forest – Top 10 Variable Importance",
+    x     = NULL,
+    y     = "Importance"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+## Key Insight
+
+Across both analytic tracks, two clear patterns emerge. First, when predicting how many stressors a student carries, the pruned CART regression tree outperforms linear, LASSO, and SVR models—achieving an RMSE of 1.26 stressors (±1 point on an 18‑point scale) and explaining 70% of the variance. Its split hierarchy financial stress, then peer pressure, then relationship stress offers a transparent, behaviour driven roadmap for student support: bolster emergency aid first, then guide peer‑group interventions, and finally target relationship counselling to nudge students below high‑risk stress thresholds.
+
+Second, in the counselling‑attendance classification task, no single decision tree could crack the code, but ensemble and margin‑based methods improved performance. Bagging lifted AUC from 0.49 (CART) to 0.55, and a tuned random forest reached 0.53, yet logistic regression and SVM‑RBF still led the field with AUCs of 0.57. The strongest predictor study load, sleep exercise habits, and the special coping signal of traveling—show that attendance hinges not just on stress level but on practical behaviours and available bandwidth to seek help.
+
+# Recommendation
+
+-Deploy the pruned CART‑Reg model as the core module in any real time dashboard flagging students at risk of high stressor counts its combination of interpretability and precision makes it ideal for advisor conversations.
+
+-Use logistic regression or SVM for automated triage of counselling referrals until the feature set can be enriched. These classifiers most reliably balance sensitivity and specificity, limiting both missed cases and false alarms.
+
+-Expand data collection to include measures of scheduling flexibility, perceived stigma, and digital access barriers features that tree ensembles gravitate toward but cannot currently isolate; richer signals here are needed to push AUC above 0.60 and enable truly proactive outreach.
+
+# Conclusion
+
+This project has demonstrated the complementary strengths of competing modeling approaches in student well‑being analytics. A single, well‑pruned regression tree excels at quantifying stressor counts, delivering actionable insights into the hierarchy of personal pressures. In contrast, ensemble and margin‑based classifiers offer the best shot at predicting who will actually walk into counselling—though logistic regression and SVM currently hold the edge. By pairing these tailored models with enhanced data on behavioural and access constraints, we can build a decision‑support system that not only measures student stress accurately but also directs support services to those most likely to use them closing the loop from data to real‑world impact.
+
